@@ -21,6 +21,13 @@ final contextoAcaoProvider = Provider<ContextoAcao?>((ref) {
   return m == null ? null : ContextoAcao(m, OrigemAcao.app);
 });
 
+/// Máquina onde uma reserva futura pode começar agora (ou null).
+/// Recalcula quando o estado das máquinas muda.
+final antecipavelProvider = FutureProvider.autoDispose.family<String?, String>((ref, reservaId) {
+  ref.watch(maquinasProvider);
+  return ref.read(lavanderonRepositoryProvider).maquinaParaAntecipar(reservaId);
+});
+
 /// Apartamento do morador atual está ativo (paga a mensalidade)?
 final aptoAtivoProvider = Provider<bool>((ref) {
   final ctx = ref.watch(contextoAcaoProvider);

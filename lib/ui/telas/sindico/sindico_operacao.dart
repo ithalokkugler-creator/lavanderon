@@ -291,6 +291,7 @@ class AgendaSindicoTela extends ConsumerStatefulWidget {
 
 class _AgendaSindicoState extends ConsumerState<AgendaSindicoTela> {
   int _dia = 0;
+  bool _mostrarPassadas = false;
   @override
   Widget build(BuildContext context) {
     final agora = ref.watch(agoraProvider).value ?? DateTime.now();
@@ -299,6 +300,8 @@ class _AgendaSindicoState extends ConsumerState<AgendaSindicoTela> {
     final maquinas = (ref.watch(maquinasProvider).value ?? const <Maquina>[]).sortedBy((m) => '${m.tipo.index}${m.ordem.toString().padLeft(2, '0')}');
     final reservas = (ref.watch(reservasDoDiaProvider(dia)).value ?? const <Reserva>[]).where((r) => r.status != StatusReserva.cancelada).toList();
 
+    // Hoje: por padrão começa na hora atual; dias anteriores mostram tudo (são consulta).
+    final horaInicial = _dia == 0 && !_mostrarPassadas ? agora.hour : 0;
     Reserva? em(String maqId, int h) => reservas.firstWhereOrNull((r) => r.maquinaId == maqId && r.inicio.isBefore(dia.add(Duration(hours: h + 1))) && r.fim.isAfter(dia.add(Duration(hours: h))));
 
     return PaginaSindico(
@@ -310,6 +313,19 @@ class _AgendaSindicoState extends ConsumerState<AgendaSindicoTela> {
         IconButton(onPressed: _dia < 7 ? () => setState(() => _dia++) : null, icon: const Icon(Icons.chevron_right_rounded)),
       ],
       filhos: [
+        if (_dia == 0)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: FilterChip(
+                avatar: const Icon(Icons.history_rounded, size: 18),
+                label: const Text('Mostrar horas que já passaram'),
+                selected: _mostrarPassadas,
+                onSelected: (v) => setState(() => _mostrarPassadas = v),
+              ),
+            ),
+          ),
         CartaoBase(
           padding: const EdgeInsets.all(12),
           child: SingleChildScrollView(
@@ -321,7 +337,7 @@ class _AgendaSindicoState extends ConsumerState<AgendaSindicoTela> {
                   SizedBox(width: 78, child: Column(children: [Icon(iconeTipo(m.tipo), size: 18, color: Cores.marca), Text(m.nomeCurto, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5))])),
               ]),
               const SizedBox(height: 6),
-              for (var h = 0; h < 24; h++)
+              for (var h = horaInicial; h < 24; h++)
                 Row(children: [
                   SizedBox(
                     width: 64,

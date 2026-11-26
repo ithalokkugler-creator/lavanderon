@@ -29,8 +29,8 @@ Usuários de teste (apartamento, nome): 302 Maria, 410 Carlos, 105 Ana e
 - Em tela grande (projetor ou computador), o painel também mostra a tela **como celular** ou **como tablet**, dentro de uma moldura.
 - O próprio painel traz um roteiro sugerido. Resumindo:
   1. Entre como Maria (302).
-  2. Avance +15 min e confirme o uso da Lavadora 4: o cronômetro liga.
-  3. Abra a Lavadora 3 e registre a retirada da roupa do 410 para o balcão.
+  2. Toque em "Começar agora" na reserva das 19:00: a Lavadora 4 está livre, então não precisa esperar, e o cronômetro liga.
+  3. Avance +5 min, abra a Lavadora 3 e registre a retirada da roupa do 410 para o balcão.
   4. Passe para o Tablet.
   5. Termine na área do Síndico.
 - Os dados ficam só na memória do navegador. Ao recarregar a página, tudo volta ao estado inicial (hoje, 18:40).

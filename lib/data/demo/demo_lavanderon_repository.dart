@@ -374,19 +374,27 @@ class DemoLavanderonRepository implements LavanderonRepository {
           origem: origem));
 
   @override
+  Future<String?> maquinaParaAntecipar(String reservaId) async {
+    _processar();
+    return _reservas.maquinaParaAntecipar(reservaId);
+  }
+
+  @override
   Future<void> confirmarUso({
     required String reservaId,
     required Morador quem,
     required int duracaoMin,
     String? programa,
     OrigemAcao origem = OrigemAcao.app,
+    String? maquinaId,
   }) =>
       _acao(() => _reservas.confirmarUso(
           reservaId: reservaId,
           quem: quem,
           duracaoMin: duracaoMin,
           programa: programa,
-          origem: origem));
+          origem: origem,
+          maquinaId: maquinaId));
 
   @override
   Future<void> ajustarCronometro(String reservaId, int deltaMin) =>

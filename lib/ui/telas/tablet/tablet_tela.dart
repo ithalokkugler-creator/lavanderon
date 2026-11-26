@@ -300,6 +300,14 @@ class _PainelTablet extends ConsumerWidget {
     final agora = repo.agoraAtual;
     final lista = await repo.reservasDoApto(ctx.aptoId).first;
     final janela = lista.where((r) => r.status == StatusReserva.agendada && r.podeConfirmar(agora)).toList();
+    // Reservas futuras que podem começar agora (máquina livre): não precisa esperar o horário.
+    final antecipar = <String, String>{};
+    for (final r in lista.where((r) => r.status == StatusReserva.agendada && !r.podeConfirmar(agora) && r.inicio.isAfter(agora))) {
+      final m = await repo.maquinaParaAntecipar(r.id);
+      if (m != null) antecipar[r.id] = m;
+    }
+    janela.addAll(lista.where((r) => antecipar.containsKey(r.id)));
+    janela.sort((a, b) => a.inicio.compareTo(b.inicio));
     final emUso = lista.where((r) => r.status == StatusReserva.emUso).toList();
     if (!context.mounted) return false;
     if (janela.isEmpty) {
@@ -310,7 +318,7 @@ class _PainelTablet extends ConsumerWidget {
           content: SizedBox(
             width: 520,
             child: emUso.isEmpty
-                ? const Text('Só dá para confirmar de 10 min antes até 15 min depois do início. Se a máquina estiver livre, use "Usar máquina agora".')
+                ? const Text('Nenhuma máquina do tipo da sua reserva está livre agora, e o horário ainda não começou. Tente de novo quando uma liberar, ou até 15 min depois do início.')
                 : CartaoCronometro(reserva: emUso.first, agora: agora, ctx: ctx),
           ),
           actions: [FilledButton(onPressed: () => Navigator.pop(c), child: const Text('Ok'))],
@@ -323,11 +331,15 @@ class _PainelTablet extends ConsumerWidget {
         : await showDialog<Reserva>(
             context: context,
             builder: (c) => SimpleDialog(title: const Text('Qual reserva?'), children: [
-              for (final x in janela) SimpleDialogOption(onPressed: () => Navigator.pop(c, x), child: Text('${x.maquinaNome} · ${Fmt.hora(x.inicio)}')),
+              for (final x in janela)
+                SimpleDialogOption(
+                  onPressed: () => Navigator.pop(c, x),
+                  child: Text('${x.maquinaNome} · ${Fmt.hora(x.inicio)}${antecipar.containsKey(x.id) ? ' · pode começar agora' : ''}'),
+                ),
             ]),
           );
     if (r == null || !context.mounted) return false;
-    return fluxoConfirmarUso(context, ref, r, ctx);
+    return fluxoConfirmarUso(context, ref, r, ctx, maquinaId: antecipar[r.id]);
   }
 }
 

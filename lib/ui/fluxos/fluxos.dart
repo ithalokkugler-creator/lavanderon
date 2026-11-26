@@ -119,12 +119,16 @@ class _OpcaoPrograma extends StatelessWidget {
       );
 }
 
-Future<bool> fluxoConfirmarUso(BuildContext context, WidgetRef ref, Reserva r, ContextoAcao ctx) async {
-  final p = await escolherPrograma(context, ref, r.tipo);
+/// Confirma o uso. Com [maquinaId], é o "começar agora" antes do horário,
+/// possivelmente em outra máquina livre do mesmo tipo.
+Future<bool> fluxoConfirmarUso(BuildContext context, WidgetRef ref, Reserva r, ContextoAcao ctx, {String? maquinaId}) async {
+  final p = await escolherPrograma(context, ref, r.tipo, titulo: maquinaId == null ? 'Quanto tempo o visor da máquina mostra?' : 'Começar agora: quanto tempo o visor mostra?');
   if (p == null || !context.mounted) return false;
   try {
-    await ref.read(lavanderonRepositoryProvider).confirmarUso(reservaId: r.id, quem: ctx.quem, duracaoMin: p.$2, programa: p.$1, origem: ctx.origem);
-    if (context.mounted) mostrarSucesso(context, 'Uso confirmado na ${r.maquinaNome}. Cronômetro ligado: ${Fmt.minutos(p.$2)}.');
+    final repo = ref.read(lavanderonRepositoryProvider);
+    await repo.confirmarUso(reservaId: r.id, quem: ctx.quem, duracaoMin: p.$2, programa: p.$1, origem: ctx.origem, maquinaId: maquinaId);
+    final nome = maquinaId == null ? r.maquinaNome : ((await repo.maquinas().first).where((m) => m.id == maquinaId).firstOrNull?.nome ?? r.maquinaNome);
+    if (context.mounted) mostrarSucesso(context, 'Uso confirmado na $nome. Cronômetro ligado: ${Fmt.minutos(p.$2)}.');
     return true;
   } catch (e) {
     if (context.mounted) mostrarErro(context, e);
@@ -143,6 +147,55 @@ Future<bool> fluxoUsarAgora(BuildContext context, WidgetRef ref, Maquina m, Cont
     if (context.mounted) mostrarErro(context, e);
     return false;
   }
+}
+
+/// Máquinas de um tipo que podem ser usadas neste instante.
+List<Maquina> maquinasLivresAgora(List<Maquina> todas, TipoMaquina tipo) =>
+    todas.where((m) => m.tipo == tipo && m.status == StatusMaquina.disponivel && m.situacao == SituacaoMaquina.livre).toList()
+      ..sort((a, b) => a.ordem.compareTo(b.ordem));
+
+/// Escolhe uma máquina livre agora (lista de cartões verdes).
+Future<Maquina?> escolherMaquinaLivre(BuildContext context, WidgetRef ref, TipoMaquina? tipo) async {
+  final todas = await ref.read(lavanderonRepositoryProvider).maquinas().first;
+  final lista = tipo == null
+      ? [...maquinasLivresAgora(todas, TipoMaquina.lavadora), ...maquinasLivresAgora(todas, TipoMaquina.secadora)]
+      : maquinasLivresAgora(todas, tipo);
+  if (!context.mounted) return null;
+  return showModalBottomSheet<Maquina>(
+    context: context,
+    builder: (c) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 0, 22, 22),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('Qual máquina você vai usar?', style: Theme.of(c).textTheme.titleLarge),
+          const SizedBox(height: 4),
+          const Text('Estas estão livres agora. O cronômetro começa assim que você escolher o programa.', style: TextStyle(color: Cores.textoSuave)),
+          const SizedBox(height: 14),
+          if (lista.isEmpty) const EstadoVazio(icone: Icons.hourglass_empty_rounded, titulo: 'Nenhuma máquina livre agora', texto: 'Reserve um horário na aba Reservar.'),
+          for (final m in lista)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: CartaoBase(
+                onTap: () => Navigator.pop(c, m),
+                padding: const EdgeInsets.all(14),
+                corBorda: Cores.livre.withValues(alpha: 0.4),
+                child: Row(children: [
+                  IconeMaquina(m.tipo, cor: Cores.livre, tamanho: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(m.nome, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                      Text(m.livreAte == null ? 'Livre pelo resto do dia' : 'Livre até ${Fmt.hora(m.livreAte!)}', style: const TextStyle(color: Cores.textoSuave, fontSize: 13)),
+                    ]),
+                  ),
+                  const Icon(Icons.chevron_right),
+                ]),
+              ),
+            ),
+        ]),
+      ),
+    ),
+  );
 }
 
 Future<bool> fluxoCancelar(BuildContext context, WidgetRef ref, Reserva r, ContextoAcao ctx) async {

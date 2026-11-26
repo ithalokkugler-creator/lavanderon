@@ -208,12 +208,56 @@ class _CartaoProxima extends ConsumerWidget {
             onPressed: () async => fluxoMaquinaOcupada(context, ref, reserva, ctx!),
           ),
         ] else if (ctx != null) ...[
-          const SizedBox(height: 10),
-          Text('Você poderá confirmar o uso a partir das ${Fmt.hora(reserva.inicio.subtract(const Duration(minutes: 10)))}.',
-              style: const TextStyle(color: Cores.textoSuave, fontSize: 13.5)),
+          const SizedBox(height: 14),
+          _ComecarAntes(reserva: reserva, ctx: ctx!),
         ],
       ]),
     );
+  }
+}
+
+/// "Começar agora": se há máquina livre agora, não precisa esperar o horário da reserva.
+class _ComecarAntes extends ConsumerWidget {
+  const _ComecarAntes({required this.reserva, required this.ctx});
+  final Reserva reserva;
+  final ContextoAcao ctx;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final maqId = ref.watch(antecipavelProvider(reserva.id)).value;
+    if (maqId == null) {
+      return Text('A máquina não está livre agora. Você poderá confirmar o uso a partir das ${Fmt.hora(reserva.inicio.subtract(const Duration(minutes: 10)))}.',
+          style: const TextStyle(color: Cores.textoSuave, fontSize: 13.5));
+    }
+    final outra = maqId != reserva.maquinaId;
+    final nome = (ref.watch(maquinasProvider).value ?? const <Maquina>[]).where((m) => m.id == maqId).firstOrNull?.nome ?? 'máquina';
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Cores.fundoDe(Cores.livre), borderRadius: BorderRadius.circular(14)),
+        child: Row(children: [
+          const Icon(Icons.bolt_rounded, color: Cores.livre),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              outra
+                  ? 'A ${reserva.maquinaNome} está ocupada, mas a $nome está livre agora. Quer começar nela sem esperar?'
+                  : 'A $nome está livre agora. Não precisa esperar o horário: comece já.',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ]),
+      ),
+      const SizedBox(height: 10),
+      BotaoAcao(
+        rotulo: outra ? 'Começar agora na $nome' : 'Começar agora',
+        icone: Icons.play_circle_fill_rounded,
+        cor: Cores.livre,
+        onPressed: () async => fluxoConfirmarUso(context, ref, reserva, ctx, maquinaId: maqId),
+      ),
+      const SizedBox(height: 6),
+      const Text('Sua reserva passa a começar agora. Se o horário original não for mais necessário, ele fica livre para outros moradores.',
+          style: TextStyle(color: Cores.textoSuave, fontSize: 12.5)),
+    ]);
   }
 }
 

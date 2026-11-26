@@ -229,8 +229,8 @@ class _PainelDemo extends ConsumerWidget {
         secao('Roteiro sugerido'),
         for (final (i, passo) in const [
           'Entre como Maria (302): veja o painel ao vivo e a reserva das 19:00 na Lavadora 4.',
-          'Avance +15 min e confirme o uso: escolha o programa e veja o cronômetro.',
-          'Abra a Lavadora 3 (pronta há alguns minutos) e registre que retirou a roupa e deixou no balcão.',
+          'A Lavadora 4 está livre: toque em "Começar agora" sem esperar as 19:00, escolha o programa e veja o cronômetro.',
+          'Avance +5 min, abra a Lavadora 3 (prazo do dono acabou às 18:44) e registre que retirou a roupa e deixou no balcão.',
           'Troque para o Tablet e use uma máquina sem celular.',
           'Relate um problema numa máquina com reserva e veja a realocação.',
           'Entre como Síndico: ocorrências, aviso de conduta, fechar a lavanderia e estatísticas.',

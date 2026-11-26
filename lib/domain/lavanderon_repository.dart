@@ -75,13 +75,21 @@ abstract class LavanderonRepository {
     OrigemAcao origem = OrigemAcao.app,
   });
 
-  /// RN-06 + RN-27.
+  /// Máquina onde a reserva ainda não iniciada poderia começar agora (a
+  /// própria; senão a livre menos usada do mesmo tipo), ou null. RN-06.
+  Future<String?> maquinaParaAntecipar(String reservaId);
+
+  /// RN-06 + RN-27. Antes da janela de check-in (ou com [maquinaId]
+  /// diferente), a reserva é movida para começar agora no slot atual da
+  /// máquina, liberando os horários originais; lança `MAQUINA_INDISPONIVEL`
+  /// ou `CRONOMETRO_EXCEDE` se não der.
   Future<void> confirmarUso({
     required String reservaId,
     required Morador quem,
     required int duracaoMin,
     String? programa,
     OrigemAcao origem = OrigemAcao.app,
+    String? maquinaId,
   });
 
   Future<void> ajustarCronometro(String reservaId, int deltaMin);

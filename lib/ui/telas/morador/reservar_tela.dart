@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../dominio.dart';
 import '../../estado.dart';
+import '../../fluxos/fluxos.dart';
 import '../../tema/tema.dart';
 import '../../util/fmt.dart';
 import '../../widgets/base.dart';
@@ -78,27 +79,46 @@ class _GradeReservaState extends ConsumerState<GradeReserva> {
       grade.when(
         loading: () => const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator())),
         error: (e, _) => Text('$e'),
-        data: (slots) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          for (final (nome, h0, ic) in _periodos) ...[
-            _CabecalhoPeriodo(nome: nome, icone: ic, key: _rolagem.putIfAbsent(nome, GlobalKey.new)),
-            LayoutBuilder(builder: (context, c) {
-              final cols = c.maxWidth >= 900 ? 3 : (c.maxWidth >= 560 ? 2 : 1);
-              final lista = slots.where((s) => s.inicio.hour >= h0 && s.inicio.hour < h0 + 6).toList();
-              return Wrap(spacing: 10, runSpacing: 10, children: [
-                for (final s in lista)
-                  SizedBox(
-                    width: (c.maxWidth - (cols - 1) * 10) / cols,
-                    child: _CelulaSlot(
-                      slot: s,
-                      grande: widget.grande,
-                      habilitado: ctx != null && ativo,
-                      onTap: () => _confirmar(s, ctx!),
-                    ),
-                  ),
-              ]);
-            }),
-          ],
-        ]),
+        data: (slots) {
+          // Horários que já terminaram não aparecem. O horário em andamento vira o cartão "Agora".
+          final futuros = slots.where((s) => s.fim.isAfter(agora)).toList();
+          final atual = futuros.where((s) => !s.inicio.isAfter(agora)).firstOrNull;
+          final proximos = futuros.where((s) => s.inicio.isAfter(agora)).toList();
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (atual != null) ...[
+              const SizedBox(height: 6),
+              _CartaoAgora(slot: atual, tipo: _tipo, agora: agora, habilitado: ctx != null && ativo),
+            ],
+            if (proximos.isEmpty)
+              EstadoVazio(
+                icone: Icons.event_busy_rounded,
+                titulo: 'Não há mais horários neste dia',
+                texto: 'Escolha o dia seguinte para ver os próximos horários.',
+                acao: _diaIdx < dias - 1 ? 'Ver o próximo dia' : null,
+                onAcao: () => setState(() => _diaIdx++),
+              ),
+            for (final (nome, h0, ic) in _periodos)
+              if (proximos.any((s) => s.inicio.hour >= h0 && s.inicio.hour < h0 + 6)) ...[
+                _CabecalhoPeriodo(nome: nome, icone: ic, key: _rolagem.putIfAbsent(nome, GlobalKey.new)),
+                LayoutBuilder(builder: (context, c) {
+                  final cols = c.maxWidth >= 900 ? 3 : (c.maxWidth >= 560 ? 2 : 1);
+                  final lista = proximos.where((s) => s.inicio.hour >= h0 && s.inicio.hour < h0 + 6).toList();
+                  return Wrap(spacing: 10, runSpacing: 10, children: [
+                    for (final s in lista)
+                      SizedBox(
+                        width: (c.maxWidth - (cols - 1) * 10) / cols,
+                        child: _CelulaSlot(
+                          slot: s,
+                          grande: widget.grande,
+                          habilitado: ctx != null && ativo,
+                          onTap: () => _confirmar(s, ctx!),
+                        ),
+                      ),
+                  ]);
+                }),
+              ],
+          ]);
+        },
       ),
     ]);
   }
@@ -144,6 +164,57 @@ class _GradeReservaState extends ConsumerState<GradeReserva> {
     if (r == null || !mounted) return;
     mostrarSucesso(context, 'Reservado! ${r.maquinaNome}, ${Fmt.intervalo(r.inicio, r.fim, agora)}.');
     widget.aoReservar?.call(r);
+  }
+}
+
+/// Horário em andamento: não dá para reservar, só usar agora uma máquina livre.
+class _CartaoAgora extends ConsumerWidget {
+  const _CartaoAgora({required this.slot, required this.tipo, required this.agora, required this.habilitado});
+  final SlotGrade slot;
+  final TipoMaquina tipo;
+  final DateTime agora;
+  final bool habilitado;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final livres = maquinasLivresAgora(ref.watch(maquinasProvider).value ?? const <Maquina>[], tipo);
+    final ctx = ref.watch(contextoAcaoProvider);
+    final cor = livres.isEmpty ? Cores.textoSuave : Cores.livre;
+    return CartaoBase(
+      corBorda: cor.withValues(alpha: 0.5),
+      cor: Cores.fundoDe(cor),
+      padding: const EdgeInsets.all(16),
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(10)),
+          child: const Text('AGORA', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${Fmt.hora(slot.inicio)}–${Fmt.hora(slot.fim)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            Text(
+              livres.isEmpty
+                  ? 'Nenhuma ${nomeTipo(tipo).toLowerCase()} livre neste momento'
+                  : '${livres.length == 1 ? '1 livre' : '${livres.length} livres'} agora · o horário já começou, então é só usar',
+              style: const TextStyle(color: Cores.textoSuave, fontWeight: FontWeight.w600, fontSize: 13.5),
+            ),
+          ]),
+        ),
+        if (livres.isNotEmpty && habilitado && ctx != null) ...[
+          const SizedBox(width: 10),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: Cores.livre),
+            onPressed: () async {
+              final m = await escolherMaquinaLivre(context, ref, tipo);
+              if (m != null && context.mounted) await fluxoUsarAgora(context, ref, m, ctx);
+            },
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: const Text('Usar agora'),
+          ),
+        ],
+      ]),
+    );
   }
 }
 

@@ -38,8 +38,9 @@ class RegrasReserva {
   /// RN-04. Conta reservas do dia (agendadas, em uso e já usadas) e as
   /// futuras ativas do apartamento.
   void _checarLimites(String aptoId, TipoMaquina tipo, DateTime inicio,
-      {bool checarFuturas = true}) {
+      {bool checarFuturas = true, String? exceto}) {
     final doDia = e.reservas.values.where((r) =>
+        r.id != exceto &&
         r.aptoId == aptoId &&
         r.tipo == tipo &&
         mesmoDia(r.inicio, inicio) &&
@@ -226,12 +227,53 @@ class RegrasReserva {
 
   // ------------------------------------------------------------ Confirmar uso
 
+  /// Início antecipado: a [base] está livre agora (tipo, status, situação,
+  /// fechamento e slot atual). Não olha limites nem cronômetro.
+  bool _livreAgoraPara(Reserva r, Maquina base) {
+    final agora = e.agora;
+    final ini = e.inicioDoSlot(agora);
+    final fim = ini.add(e.slot);
+    if (base.tipo != r.tipo) return false;
+    final der = d.maquina(base.id);
+    if (der.status != StatusMaquina.disponivel) return false;
+    if (der.situacao != SituacaoMaquina.livre &&
+        der.situacao != SituacaoMaquina.reservada) {
+      return false;
+    }
+    if (e.fechamentoNoPeriodo(agora, fim) != null) return false;
+    return e.ocupante(base.id, ini, fim, exceto: r.id) == null;
+  }
+
+  /// Máquina onde a reserva poderia começar agora (a própria, senão a livre
+  /// menos usada do mesmo tipo), ou null. Só para reservas agendadas que
+  /// ainda não começaram.
+  String? maquinaParaAntecipar(String reservaId) {
+    final r = e.reservas[reservaId];
+    if (r == null ||
+        r.status != StatusReserva.agendada ||
+        !r.inicio.isAfter(e.agora)) {
+      return null;
+    }
+    final propria = e.maquinas[r.maquinaId];
+    if (propria != null && _livreAgoraPara(r, propria)) return propria.id;
+    final outras = e
+        .baseDoTipo(r.tipo)
+        .where((m) => m.id != r.maquinaId && _livreAgoraPara(r, m))
+        .toList()
+      ..sort((a, b) {
+        final c = e.usoRecente(a.id).compareTo(e.usoRecente(b.id));
+        return c != 0 ? c : a.ordem.compareTo(b.ordem);
+      });
+    return outras.firstOrNull?.id;
+  }
+
   void confirmarUso({
     required String reservaId,
     required Morador quem,
     required int duracaoMin,
     String? programa,
     OrigemAcao origem = OrigemAcao.app,
+    String? maquinaId,
   }) {
     final r = e.reserva(reservaId);
     _exigirDono(r, quem);
@@ -242,11 +284,18 @@ class RegrasReserva {
           'NAO_PERMITIDO', 'Essa reserva não pode mais ser confirmada.');
     }
     final agora = e.agora;
+    final destino = maquinaId ?? r.maquinaId;
     final de = r.inicio.subtract(Duration(minutes: e.config.checkinAntesMin));
     final ate = r.inicio.add(Duration(minutes: e.config.toleranciaMin));
-    if (agora.isBefore(de)) {
-      throw AppErro('FORA_JANELA_CHECKIN',
-          'Você pode confirmar o uso a partir das ${hora(de)}.');
+    // Antes do horário (ou em outra máquina): começa agora, se houver vaga.
+    if (r.inicio.isAfter(agora) &&
+        (agora.isBefore(de) || destino != r.maquinaId)) {
+      _anteciparUso(r, destino, duracaoMin, programa, origem, quem.nome);
+      return;
+    }
+    if (destino != r.maquinaId) {
+      throw const AppErro('NAO_PERMITIDO',
+          'Para trocar de máquina depois do horário, use "A máquina está ocupada".');
     }
     if (agora.isAfter(ate)) {
       throw const AppErro('FORA_JANELA_CHECKIN',
@@ -256,6 +305,65 @@ class RegrasReserva {
     if (e.indisponivelNoPeriodo(m, agora, r.fim)) throw _erroIndisponivel(m);
     _exigirMaquinaSemRoupaAlheia(r);
     aplicarCheckin(r, duracaoMin, programa, origem, quem.nome);
+  }
+
+  /// Move a reserva para o slot atual de [destinoId] e liga o cronômetro.
+  /// Os horários originais que sobram são liberados.
+  void _anteciparUso(Reserva r, String destinoId, int duracaoMin,
+      String? programa, OrigemAcao origem, String nomeQuem) {
+    final agora = e.agora;
+    final m = e.maquinaBase(destinoId);
+    if (m.tipo != r.tipo) {
+      throw const AppErro(
+          'NAO_PERMITIDO', 'Escolha uma máquina do mesmo tipo.');
+    }
+    if (!_livreAgoraPara(r, m)) {
+      final der = d.maquina(m.id);
+      if (der.status != StatusMaquina.disponivel) throw _erroIndisponivel(der);
+      throw AppErro('MAQUINA_INDISPONIVEL',
+          'A ${m.nome} não está livre agora. Escolha outra máquina ou aguarde o seu horário.');
+    }
+    final ini = e.inicioDoSlot(agora);
+    final termina = agora.add(Duration(minutes: duracaoMin));
+    _exigirAberta(agora, termina);
+    if (e.indisponivelNoPeriodo(m, agora, termina)) throw _erroIndisponivel(m);
+    _checarLimites(r.aptoId, r.tipo, ini, checarFuturas: false, exceto: r.id);
+
+    final provisoria = r.copyWith(
+      maquinaId: m.id,
+      maquinaNome: m.nome,
+      inicio: ini,
+      fim: ini.add(e.slot),
+    );
+    final novoFim = _fimParaCronometro(provisoria, termina);
+
+    final era = mesmoDia(r.inicio, agora)
+        ? hora(r.inicio)
+        : '${dataCurta(r.inicio)} ${hora(r.inicio)}';
+    e.salvarReserva(r.copyWith(
+      maquinaId: m.id,
+      maquinaNome: m.nome,
+      inicio: ini,
+      fim: novoFim,
+      status: StatusReserva.emUso,
+      checkinEm: agora,
+      cronometro: Cronometro(
+        programa: programa,
+        duracaoMin: duracaoMin,
+        iniciadoEm: agora,
+        terminaEm: termina,
+      ),
+      historico: [
+        ...r.historico,
+        e.linha(
+            'Uso confirmado antes do horário (reserva era $era na ${r.maquinaNome}) por $nomeQuem ${_origemTexto(origem)}'),
+        e.linha(
+            'Cronômetro ligado: ${minutosLegivel(duracaoMin)}${programa != null ? ' ($programa)' : ''}, pronta às ${hora(termina)}'),
+        if (novoFim.isAfter(ini.add(e.slot)))
+          e.linha('Horário estendido até ${hora(novoFim)}'),
+      ],
+    ));
+    e.aguardando.remove(m.id);
   }
 
   void _exigirMaquinaSemRoupaAlheia(Reserva r) {

@@ -45,7 +45,8 @@ estão em [`docs/ARQUITETURA.md`](../../../docs/ARQUITETURA.md).
 | `pedirAcesso` | Callable `pedirAcesso` (cria `pedidosAcesso`) |
 | `reservar` | Callable `criarReserva` (transação em `agendas` + `reservas`) |
 | `usarAgora` | Callable `usarAgora` |
-| `confirmarUso` | Callable `confirmarUso` |
+| `confirmarUso` | Callable `confirmarUso` (aceita `maquinaId`; antes da janela move a reserva para o slot atual numa transação: libera os slots originais em `agendas` e grava novo `inicio/fim/maquinaId`) |
+| `maquinaParaAntecipar` | Callable `maquinaParaAntecipar` (somente leitura; mesmas checagens do início antecipado) |
 | `ajustarCronometro` | Callable `ajustarCronometro` |
 | `finalizar` | Callable `finalizarUso` |
 | `cancelar` | Callable `cancelarReserva` |

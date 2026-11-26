@@ -65,7 +65,7 @@ marca em `EstadoDemo.flags`.
 | RN-03 antecedência e slot atual | `RegrasReserva.reservar` (`HORARIO_INVALIDO`) |
 | RN-04 limites por apartamento | `RegrasReserva._checarLimites` |
 | RN-05 até 2 slots seguidos | `RegrasReserva._fimParaCronometro` |
-| RN-06 janela de check-in | `Reserva.podeConfirmar`, `RegrasReserva.confirmarUso` |
+| RN-06 janela de check-in e início antecipado | `Reserva.podeConfirmar`, `RegrasReserva.confirmarUso` (janela); `maquinaParaAntecipar` + `_anteciparUso` (começar antes do horário no slot atual, liberando os horários originais) |
 | RN-07 não comparecimento | `Tick` (reservas agendadas) |
 | RN-08 cancelamento e tardio | `RegrasReserva.cancelar`, `Reserva.cancelamentoTardio` |
 | RN-09 reserva é do apartamento | `RegrasReserva._exigirDono` |
@@ -100,7 +100,8 @@ Caminhos sob `condominios/{condoId}` (plano 13.1). Detalhes e observações em
 | `pedirAcesso` | `pedirAcesso` | `pedidosAcesso` |
 | `reservar` | `criarReserva` | `agendas/{dia}`, `reservas` |
 | `usarAgora` | `usarAgora` | `agendas/{dia}`, `reservas`, `maquinas.estadoAtual` |
-| `confirmarUso` | `confirmarUso` | `reservas`, `agendas`, `maquinas.estadoAtual` |
+| `confirmarUso` (`maquinaId` opcional; início antecipado move a reserva para o slot atual) | `confirmarUso` | `reservas`, `agendas`, `maquinas.estadoAtual` |
+| `maquinaParaAntecipar` | `maquinaParaAntecipar` (leitura) | `reservas`, `agendas`, `maquinas.estadoAtual` |
 | `ajustarCronometro` | `ajustarCronometro` | `reservas.cronometro`, `agendas` |
 | `finalizar` | `finalizarUso` | `reservas`, `agendas`, `maquinas.estadoAtual` |
 | `cancelar` / `cancelarReservaAdmin` | `cancelarReserva` | `reservas`, `agendas` |

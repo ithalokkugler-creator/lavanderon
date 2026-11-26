@@ -167,15 +167,8 @@ void main() {
       final repo = novoRepo();
       final maria = await repo.entrar('302', 'Maria');
       final r = await repo.reservaDe('lav4', hoje(19));
-      await expectLater(
-        repo.confirmarUso(reservaId: r.id, quem: maria, duracaoMin: 45),
-        erro('FORA_JANELA_CHECKIN'),
-      );
-      try {
-        await repo.confirmarUso(reservaId: r.id, quem: maria, duracaoMin: 45);
-      } catch (e) {
-        expect(e.toString(), contains('18:50'));
-      }
+      // Antes da janela (18:40) o uso pode começar antes do horário: ver
+      // test/antecipar_test.dart. Aqui o check-in é dentro da janela.
       repo.avancarRelogio(const Duration(minutes: 10)); // 18:50
       await repo.confirmarUso(
           reservaId: r.id, quem: maria, duracaoMin: 45, programa: 'Normal');
