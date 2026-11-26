@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
-// Placeholder temporário. Será substituído pelo app real (lib/app/app.dart).
-void main() => runApp(const MaterialApp(
-      title: 'Lavanderon',
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(body: Center(child: Text('Lavanderon — em construção'))),
-    ));
+import 'app/app.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('pt_BR');
+  runApp(const ProviderScope(child: LavanderonApp()));
+}
