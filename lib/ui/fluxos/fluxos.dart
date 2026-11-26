@@ -12,22 +12,23 @@ import 'relatar_paginas.dart';
 /// Fluxos compartilhados entre celular, computador e tablet.
 /// Abrem folhas e páginas com o Navigator, sem depender das rotas de cada modo.
 
-Future<(String?, int)?> escolherPrograma(BuildContext context, WidgetRef ref, TipoMaquina tipo, {String titulo = 'Quanto tempo o visor da máquina mostra?'}) async {
+Future<(String?, int)?> escolherPrograma(BuildContext context, WidgetRef ref, TipoMaquina tipo, {String titulo = 'Quanto tempo o visor da máquina mostra?', String? nota}) async {
   final cfg = await ref.read(lavanderonRepositoryProvider).config().first;
   final programas = cfg.programas[tipo] ?? const <Programa>[];
   if (!context.mounted) return null;
   return showModalBottomSheet<(String?, int)>(
     context: context,
     isScrollControlled: true,
-    builder: (c) => _FolhaPrograma(tipo: tipo, programas: programas, titulo: titulo),
+    builder: (c) => _FolhaPrograma(tipo: tipo, programas: programas, titulo: titulo, nota: nota),
   );
 }
 
 class _FolhaPrograma extends StatefulWidget {
-  const _FolhaPrograma({required this.tipo, required this.programas, required this.titulo});
+  const _FolhaPrograma({required this.tipo, required this.programas, required this.titulo, this.nota});
   final TipoMaquina tipo;
   final List<Programa> programas;
   final String titulo;
+  final String? nota;
   @override
   State<_FolhaPrograma> createState() => _FolhaProgramaState();
 }
@@ -50,7 +51,7 @@ class _FolhaProgramaState extends State<_FolhaPrograma> {
             Expanded(child: Text(widget.titulo, style: t.titleLarge)),
           ]),
           const SizedBox(height: 6),
-          const Text('Vamos avisar quando a roupa estiver pronta. Dá para ajustar depois.', style: TextStyle(color: Cores.textoSuave)),
+          Text(widget.nota ?? 'Vamos avisar quando a roupa estiver pronta. Dá para ajustar depois.', style: const TextStyle(color: Cores.textoSuave)),
           const SizedBox(height: 18),
           Wrap(spacing: 10, runSpacing: 10, children: [
             for (final p in widget.programas)
@@ -122,7 +123,15 @@ class _OpcaoPrograma extends StatelessWidget {
 /// Confirma o uso. Com [maquinaId], é o "começar agora" antes do horário,
 /// possivelmente em outra máquina livre do mesmo tipo.
 Future<bool> fluxoConfirmarUso(BuildContext context, WidgetRef ref, Reserva r, ContextoAcao ctx, {String? maquinaId}) async {
-  final p = await escolherPrograma(context, ref, r.tipo, titulo: maquinaId == null ? 'Quanto tempo o visor da máquina mostra?' : 'Começar agora: quanto tempo o visor mostra?');
+  final p = await escolherPrograma(
+    context,
+    ref,
+    r.tipo,
+    titulo: maquinaId == null ? 'Quanto tempo o visor da máquina mostra?' : 'Começar agora: quanto tempo o visor mostra?',
+    nota: maquinaId == null
+        ? null
+        : 'Sua reserva das ${Fmt.hora(r.inicio)} passa a começar agora. Se a roupa ficar pronta antes desse horário, ele fica livre para outros moradores.',
+  );
   if (p == null || !context.mounted) return false;
   try {
     final repo = ref.read(lavanderonRepositoryProvider);
@@ -206,8 +215,25 @@ Future<bool> fluxoCancelar(BuildContext context, WidgetRef ref, Reserva r, Conte
       perigo: true);
   if (!ok || !context.mounted) return false;
   try {
-    await ref.read(lavanderonRepositoryProvider).cancelar(r.id, ctx.quem);
-    if (context.mounted) mostrarSucesso(context, 'Reserva cancelada.');
+    final repo = ref.read(lavanderonRepositoryProvider);
+    // Combo (RN-24): pergunta se cancela também a outra metade.
+    Reserva? par;
+    if (r.comboId != null) {
+      par = (await repo.reservasDoApto(r.aptoId).first)
+          .where((x) => x.comboId == r.comboId && x.id != r.id && (x.status == StatusReserva.agendada || x.status == StatusReserva.precisaAcao))
+          .firstOrNull;
+    }
+    var ambas = false;
+    if (par != null && context.mounted) {
+      ambas = await confirmar(context,
+          titulo: 'Cancelar também a ${par.tipo == TipoMaquina.secadora ? 'secagem' : 'lavagem'}?',
+          texto: 'Esta reserva faz parte de um combo com a ${par.maquinaNome} às ${Fmt.hora(par.inicio)}.',
+          sim: 'Cancelar as duas',
+          nao: 'Só esta');
+    }
+    await repo.cancelar(r.id, ctx.quem);
+    if (ambas && par != null) await repo.cancelar(par.id, ctx.quem);
+    if (context.mounted) mostrarSucesso(context, ambas ? 'Lavagem e secagem canceladas.' : 'Reserva cancelada.');
     return true;
   } catch (e) {
     if (context.mounted) mostrarErro(context, e);

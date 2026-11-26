@@ -82,7 +82,8 @@ marca em `EstadoDemo.flags`.
 | RN-20 tentativas de login | `DemoLavanderonRepository.entrar` |
 | RN-21 hora oficial | `RelogioDemo`, nunca `DateTime.now()` nas regras |
 | RN-22 mudança de configuração | Não aplicável na demo (config fixa) |
-| RN-23 fila de espera, RN-24 combo | Fora do escopo (F2) |
+| RN-23 fila de espera | Fora do escopo (F2) |
+| RN-24 combo Lavar + Secar | `RegrasReserva.reservarCombo` (lavagem em H + secagem em H+1, tudo ou nada; `comboId` compartilhado), `secadorasLivresApos`; `cancelar` cancela só a metade pedida |
 | RN-25 nome único normalizado | `core/texto.dart`, `entrar` |
 | RN-26 retenção | Não aplicável na demo |
 | RN-27 cronômetro | `RegrasReserva.confirmarUso`, `ajustarCronometro`, `Tick` |
@@ -99,6 +100,8 @@ Caminhos sob `condominios/{condoId}` (plano 13.1). Detalhes e observações em
 | `entrar` | `loginMorador` | `moradores`, `apartamentos`, `privado/tentativasLogin` |
 | `pedirAcesso` | `pedirAcesso` | `pedidosAcesso` |
 | `reservar` | `criarReserva` | `agendas/{dia}`, `reservas` |
+| `reservarCombo` | `criarReservaCombo` (uma transação) | `agendas/{dia}`, `reservas` (campo `comboId`) |
+| `secadorasLivresApos` | leitura de `agendas/{dia}` | `agendas`, `maquinas` |
 | `usarAgora` | `usarAgora` | `agendas/{dia}`, `reservas`, `maquinas.estadoAtual` |
 | `confirmarUso` (`maquinaId` opcional; início antecipado move a reserva para o slot atual) | `confirmarUso` | `reservas`, `agendas`, `maquinas.estadoAtual` |
 | `maquinaParaAntecipar` | `maquinaParaAntecipar` (leitura) | `reservas`, `agendas`, `maquinas.estadoAtual` |

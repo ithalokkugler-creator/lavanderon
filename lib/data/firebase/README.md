@@ -44,6 +44,8 @@ estão em [`docs/ARQUITETURA.md`](../../../docs/ARQUITETURA.md).
 | `entrar` | Callable `loginMorador` (devolve custom token; tentativas em `privado/tentativasLogin`) |
 | `pedirAcesso` | Callable `pedirAcesso` (cria `pedidosAcesso`) |
 | `reservar` | Callable `criarReserva` (transação em `agendas` + `reservas`) |
+| `reservarCombo` | Callable `criarReservaCombo`: numa única transação Firestore valida (limites RN-04 por tipo, antecedência, fechamentos, apto ativo), escolhe lavadora em H e secadora em H+1 (menos usadas se não informadas), grava as duas em `reservas` com o mesmo `comboId` e ocupa os dois slots em `agendas`. Se qualquer parte falhar, nada é gravado (`SLOT_OCUPADO` se faltar secadora) |
+| `secadorasLivresApos` | Leitura de `agendas/{dia}` do slot H+1 (conta secadoras livres) |
 | `usarAgora` | Callable `usarAgora` |
 | `confirmarUso` | Callable `confirmarUso` (aceita `maquinaId`; antes da janela move a reserva para o slot atual numa transação: libera os slots originais em `agendas` e grava novo `inicio/fim/maquinaId`) |
 | `maquinaParaAntecipar` | Callable `maquinaParaAntecipar` (somente leitura; mesmas checagens do início antecipado) |

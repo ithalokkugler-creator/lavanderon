@@ -54,13 +54,12 @@ class DetalheReserva extends ConsumerWidget {
         ),
       const SizedBox(height: 16),
       if (r.status == StatusReserva.agendada) ...[
-        Row(children: [
-          Expanded(child: BotaoAcao(rotulo: 'Trocar de máquina', icone: Icons.swap_horiz_rounded, estilo: EstiloBotao.contorno, onPressed: () async => fluxoTrocar(context, ref, r, ctx))),
-          const SizedBox(width: 10),
-          Expanded(child: BotaoAcao(rotulo: 'Cancelar', icone: Icons.close_rounded, estilo: EstiloBotao.contorno, cor: Cores.problema, onPressed: () async {
-            if (await fluxoCancelar(context, ref, r, ctx) && context.mounted) Navigator.of(context).maybePop();
-          })),
-        ]),
+        // Empilhados: no celular, lado a lado o texto era cortado.
+        BotaoAcao(rotulo: 'Trocar de máquina', icone: Icons.swap_horiz_rounded, estilo: EstiloBotao.contorno, onPressed: () async => fluxoTrocar(context, ref, r, ctx)),
+        const SizedBox(height: 10),
+        BotaoAcao(rotulo: 'Cancelar reserva', icone: Icons.close_rounded, estilo: EstiloBotao.contorno, cor: Cores.problema, onPressed: () async {
+          if (await fluxoCancelar(context, ref, r, ctx) && context.mounted) Navigator.of(context).maybePop();
+        }),
         if (r.inicio.difference(agora).inMinutes < 30 && r.inicio.isAfter(agora))
           const Padding(
             padding: EdgeInsets.only(top: 8),
@@ -92,6 +91,9 @@ class DetalheReserva extends ConsumerWidget {
         const SizedBox(height: 8),
         LinhaInfo(iconeTipo(r.tipo), '${nomeTipo(r.tipo)} · ${r.maquinaNome}'),
         LinhaInfo(Icons.schedule_rounded, Fmt.intervalo(r.inicio, r.fim, agora)),
+        if (r.comboId != null)
+          for (final par in (ref.watch(reservasDoAptoProvider(r.aptoId)).value ?? const <Reserva>[]).where((x) => x.comboId == r.comboId && x.id != r.id))
+            LinhaInfo(Icons.auto_awesome_rounded, 'Combo: ${par.tipo == TipoMaquina.secadora ? 'secar' : 'lavar'} na ${par.maquinaNome} às ${Fmt.hora(par.inicio)}', cor: const Color(0xFF00838F)),
         LinhaInfo(Icons.person_rounded, 'Reservada por ${r.criadaPorNome} (Ap ${r.aptoId}) ${nomeOrigem(r.origem)}'),
         if (r.checkinEm != null) LinhaInfo(Icons.play_circle_outline_rounded, 'Uso confirmado às ${Fmt.hora(r.checkinEm!)}'),
         if (r.cronometro != null) LinhaInfo(Icons.timer_outlined, '${r.cronometro!.programa ?? 'Programa'} · ${Fmt.minutos(r.cronometro!.duracaoMin)} · pronta às ${Fmt.hora(r.cronometro!.terminaEm)}'),

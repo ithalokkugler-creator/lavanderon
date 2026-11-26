@@ -100,7 +100,13 @@ class _DemoOverlayState extends ConsumerState<DemoOverlay> {
             child: Column(children: [for (final a in _alertas.take(2)) _AlertaDestaque(aviso: a, onFechar: () => setState(() => _alertas.remove(a)))]),
           ),
         ),
-        if (aberto) Positioned(right: 58, bottom: 16, top: 16, child: _PainelDemo(grande: grande)),
+        if (aberto)
+          Positioned(
+            right: mq.size.width < 500 ? 40 : 58,
+            bottom: 16,
+            top: 16 + mq.padding.top,
+            child: _PainelDemo(grande: grande, largura: (mq.size.width - (mq.size.width < 500 ? 52 : 70)).clamp(240.0, 360.0)),
+          ),
         // Aba vertical na borda direita: não cobre botões das telas.
         Positioned(right: 0, top: 0, bottom: 0, child: Center(child: _BotaoDemo(aberto: aberto))),
       ]),
@@ -114,24 +120,30 @@ class _BotaoDemo extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final agora = ref.watch(agoraProvider).value ?? DateTime.now();
-    const raio = BorderRadius.horizontal(left: Radius.circular(16));
-    return Material(
-      color: aberto ? Cores.marca : const Color(0xFF14213D),
-      borderRadius: raio,
-      elevation: 6,
-      child: InkWell(
+    // No celular a aba fica fina e translúcida para não esconder o conteúdo.
+    final celular = MediaQuery.sizeOf(context).width < 500;
+    const raio = BorderRadius.horizontal(left: Radius.circular(14));
+    return Opacity(
+      opacity: aberto || !celular ? 1 : 0.82,
+      child: Material(
+        color: aberto ? Cores.marca : const Color(0xFF14213D),
         borderRadius: raio,
-        onTap: () => ref.read(painelDemoProvider.notifier).alternar(),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(aberto ? Icons.close_rounded : Icons.slideshow_rounded, color: Colors.white, size: 20),
-            const SizedBox(height: 8),
-            RotatedBox(
-              quarterTurns: 3,
-              child: Text('DEMO · ${Fmt.hora(agora)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1)),
-            ),
-          ]),
+        elevation: 6,
+        child: InkWell(
+          borderRadius: raio,
+          onTap: () => ref.read(painelDemoProvider.notifier).alternar(),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: celular ? 4 : 8, vertical: celular ? 10 : 14),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(aberto ? Icons.close_rounded : Icons.slideshow_rounded, color: Colors.white, size: celular ? 16 : 20),
+              const SizedBox(height: 6),
+              RotatedBox(
+                quarterTurns: 3,
+                child: Text(celular ? 'DEMO' : 'DEMO · ${Fmt.hora(agora)}',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: celular ? 11 : 14)),
+              ),
+            ]),
+          ),
         ),
       ),
     );
@@ -139,8 +151,9 @@ class _BotaoDemo extends ConsumerWidget {
 }
 
 class _PainelDemo extends ConsumerWidget {
-  const _PainelDemo({required this.grande});
+  const _PainelDemo({required this.grande, required this.largura});
   final bool grande;
+  final double largura;
 
   void _ir(WidgetRef ref, Perfil p) {
     final s = ref.read(sessaoProvider.notifier);
@@ -177,7 +190,7 @@ class _PainelDemo extends ConsumerWidget {
         );
 
     return Container(
-      width: 360,
+      width: largura,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -231,6 +244,7 @@ class _PainelDemo extends ConsumerWidget {
           'Entre como Maria (302): veja o painel ao vivo e a reserva das 19:00 na Lavadora 4.',
           'A Lavadora 4 está livre: toque em "Começar agora" sem esperar as 19:00, escolha o programa e veja o cronômetro.',
           'Avance +5 min, abra a Lavadora 3 (prazo do dono acabou às 18:44) e registre que retirou a roupa e deixou no balcão.',
+          'Em Reservar, escolha "Lavar + Secar": a lavagem e a secagem logo depois são reservadas de uma vez.',
           'Troque para o Tablet e use uma máquina sem celular.',
           'Relate um problema numa máquina com reserva e veja a realocação.',
           'Entre como Síndico: ocorrências, aviso de conduta, fechar a lavanderia e estatísticas.',

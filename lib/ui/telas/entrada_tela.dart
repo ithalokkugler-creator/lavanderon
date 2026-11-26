@@ -161,16 +161,22 @@ class _Formulario extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text('Entrar', style: t.headlineMedium),
       const SizedBox(height: 16),
-      SegmentedButton<_Modo>(
-        showSelectedIcon: false,
-        segments: const [
-          ButtonSegment(value: _Modo.morador, label: Text('Morador'), icon: Icon(Icons.person_rounded)),
-          ButtonSegment(value: _Modo.sindico, label: Text('Síndico'), icon: Icon(Icons.admin_panel_settings_rounded)),
-          ButtonSegment(value: _Modo.tablet, label: Text('Tablet'), icon: Icon(Icons.tablet_mac_rounded)),
-        ],
-        selected: {modo},
-        onSelectionChanged: (s) => onModo(s.first),
-      ),
+      // No celular os ícones saem para o rótulo nunca quebrar no meio da palavra.
+      Builder(builder: (context) {
+        final estreito = MediaQuery.sizeOf(context).width < 460;
+        Widget rotulo(String t) => Text(t, maxLines: 1, softWrap: false, overflow: TextOverflow.fade);
+        return SegmentedButton<_Modo>(
+          showSelectedIcon: false,
+          style: const ButtonStyle(visualDensity: VisualDensity.compact, padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6))),
+          segments: [
+            ButtonSegment(value: _Modo.morador, label: rotulo('Morador'), icon: estreito ? null : const Icon(Icons.person_rounded)),
+            ButtonSegment(value: _Modo.sindico, label: rotulo('Síndico'), icon: estreito ? null : const Icon(Icons.admin_panel_settings_rounded)),
+            ButtonSegment(value: _Modo.tablet, label: rotulo('Tablet'), icon: estreito ? null : const Icon(Icons.tablet_mac_rounded)),
+          ],
+          selected: {modo},
+          onSelectionChanged: (s) => onModo(s.first),
+        );
+      }),
       const SizedBox(height: 24),
       ...switch (modo) {
         _Modo.morador => _morador(context),

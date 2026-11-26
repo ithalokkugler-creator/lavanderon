@@ -180,10 +180,9 @@ class _CartaoProxima extends ConsumerWidget {
       corBorda: podeConfirmar ? Cores.marca : null,
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
+        Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 6, children: [
           Text(podeConfirmar ? 'É AGORA' : 'SUA PRÓXIMA RESERVA',
               style: TextStyle(fontSize: 12, letterSpacing: 1.2, fontWeight: FontWeight.w900, color: podeConfirmar ? Cores.marca : Cores.textoSuave)),
-          const Spacer(),
           Selo(cor: Cores.reservada, icone: Icons.schedule_rounded, texto: reserva.inicio.isAfter(agora) ? 'começa ${Fmt.relativo(reserva.inicio, agora)}' : 'começou ${Fmt.relativo(reserva.inicio, agora)}'),
         ]),
         const SizedBox(height: 12),
@@ -194,6 +193,17 @@ class _CartaoProxima extends ConsumerWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(reserva.maquinaNome, style: t.titleLarge),
               Text(Fmt.intervalo(reserva.inicio, reserva.fim, agora), style: const TextStyle(color: Cores.textoSuave, fontWeight: FontWeight.w700)),
+              if (reserva.comboId != null)
+                for (final par in (ref.watch(reservasDoAptoProvider(reserva.aptoId)).value ?? const <Reserva>[])
+                    .where((x) => x.comboId == reserva.comboId && x.id != reserva.id && x.status == StatusReserva.agendada))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(children: [
+                      const Icon(Icons.dry_rounded, size: 16, color: Color(0xFF00838F)),
+                      const SizedBox(width: 4),
+                      Flexible(child: Text('Depois: ${par.maquinaNome} às ${Fmt.hora(par.inicio)}', style: const TextStyle(color: Color(0xFF00838F), fontWeight: FontWeight.w800, fontSize: 13))),
+                    ]),
+                  ),
             ]),
           ),
         ]),
@@ -210,6 +220,20 @@ class _CartaoProxima extends ConsumerWidget {
         ] else if (ctx != null) ...[
           const SizedBox(height: 14),
           _ComecarAntes(reserva: reserva, ctx: ctx!),
+        ],
+        if (ctx != null && onDetalhes != null) ...[
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: onDetalhes,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Cores.marca,
+              minimumSize: const Size.fromHeight(52),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              side: BorderSide(color: Cores.marca.withValues(alpha: 0.45), width: 1.5),
+            ),
+            icon: const Icon(Icons.edit_calendar_rounded),
+            label: const Text('Editar agendamento ou relatar problema', textAlign: TextAlign.center),
+          ),
         ],
       ]),
     );
@@ -254,9 +278,6 @@ class _ComecarAntes extends ConsumerWidget {
         cor: Cores.livre,
         onPressed: () async => fluxoConfirmarUso(context, ref, reserva, ctx, maquinaId: maqId),
       ),
-      const SizedBox(height: 6),
-      const Text('Sua reserva passa a começar agora. Se o horário original não for mais necessário, ele fica livre para outros moradores.',
-          style: TextStyle(color: Cores.textoSuave, fontSize: 12.5)),
     ]);
   }
 }

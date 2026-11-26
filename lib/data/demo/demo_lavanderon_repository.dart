@@ -359,6 +359,30 @@ class DemoLavanderonRepository implements LavanderonRepository {
       });
 
   @override
+  Future<(Reserva lavagem, Reserva secagem)> reservarCombo({
+    required Morador quem,
+    required DateTime inicioLavagem,
+    String? lavadoraId,
+    String? secadoraId,
+    OrigemAcao origem = OrigemAcao.app,
+  }) =>
+      _acao(() {
+        _e.moradorAtualId = quem.id;
+        return _reservas.reservarCombo(
+            quem: quem,
+            inicioLavagem: inicioLavagem,
+            lavadoraId: lavadoraId,
+            secadoraId: secadoraId,
+            origem: origem);
+      });
+
+  @override
+  Future<int> secadorasLivresApos(DateTime inicioLavagem) async {
+    _processar();
+    return _reservas.secadorasLivresApos(inicioLavagem);
+  }
+
+  @override
   Future<Reserva> usarAgora({
     required Morador quem,
     required String maquinaId,

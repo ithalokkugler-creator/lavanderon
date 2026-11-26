@@ -78,6 +78,7 @@ class Reserva {
     this.finalizadaEm,
     this.motivoCancelamento,
     this.mensagemAcao,
+    this.comboId,
     this.historico = const [],
   });
 
@@ -99,6 +100,12 @@ class Reserva {
 
   /// Texto mostrado quando `status == precisaAcao`.
   final String? mensagemAcao;
+
+  /// Identifica o combo Lavar + Secar (RN-24); null quando a reserva é avulsa.
+  /// As duas metades do combo compartilham o mesmo valor.
+  final String? comboId;
+
+  bool get ehCombo => comboId != null;
 
   /// Linhas da linha do tempo, já legíveis ("18:07 · Uso confirmado no app").
   final List<String> historico;
@@ -143,6 +150,7 @@ class Reserva {
     Object? finalizadaEm = kUnset,
     Object? motivoCancelamento = kUnset,
     Object? mensagemAcao = kUnset,
+    Object? comboId = kUnset,
     List<String>? historico,
   }) =>
       Reserva(
@@ -163,6 +171,7 @@ class Reserva {
         motivoCancelamento:
             escolher<String>(motivoCancelamento, this.motivoCancelamento),
         mensagemAcao: escolher<String>(mensagemAcao, this.mensagemAcao),
+        comboId: escolher<String>(comboId, this.comboId),
         historico: historico ?? this.historico,
       );
 }

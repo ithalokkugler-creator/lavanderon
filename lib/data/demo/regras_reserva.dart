@@ -147,6 +147,71 @@ class RegrasReserva {
     return r;
   }
 
+  // ------------------------------------------------------------------ Combo
+
+  /// RN-24: lavagem em H + secagem em H+1, juntas ou nenhuma.
+  (Reserva, Reserva) reservarCombo({
+    required Morador quem,
+    required DateTime inicioLavagem,
+    String? lavadoraId,
+    String? secadoraId,
+    OrigemAcao origem = OrigemAcao.app,
+  }) {
+    final iniLav = e.inicioDoSlot(inicioLavagem);
+    final iniSec = iniLav.add(e.slot);
+    // Limite de reservas futuras: o combo cria duas de uma vez.
+    final futuras = e.reservas.values.where((r) =>
+        r.aptoId == quem.aptoId &&
+        (r.status == StatusReserva.agendada ||
+            r.status == StatusReserva.precisaAcao) &&
+        r.inicio.isAfter(e.agora));
+    if (origem != OrigemAcao.sindico &&
+        futuras.length + 2 > e.config.futurasMax) {
+      throw AppErro('LIMITE',
+          'Seu apartamento já tem ${futuras.length} reservas futuras e o combo precisa de 2 vagas. Cancele uma para reservar.');
+    }
+    final lav = reservar(
+        quem: quem,
+        inicio: iniLav,
+        tipo: TipoMaquina.lavadora,
+        maquinaId: lavadoraId,
+        origem: origem);
+    try {
+      if (secadoraId == null && d.alternativas(TipoMaquina.secadora, iniSec).isEmpty) {
+        throw AppErro('SLOT_OCUPADO',
+            'Não há secadora livre às ${hora(iniSec)}. Reserve só a lavagem ou escolha outro horário.');
+      }
+      final sec = reservar(
+          quem: quem,
+          inicio: iniSec,
+          tipo: TipoMaquina.secadora,
+          maquinaId: secadoraId,
+          origem: origem);
+      final comboId = e.novoId('c');
+      final linha = e.linha('Combo lavar + secar');
+      final lavC = lav.copyWith(
+          comboId: comboId, historico: [...lav.historico, linha]);
+      final secC = sec.copyWith(
+          comboId: comboId, historico: [...sec.historico, linha]);
+      e.salvarReserva(lavC);
+      e.salvarReserva(secC);
+      return (lavC, secC);
+    } catch (_) {
+      e.reservas.remove(lav.id);
+      rethrow;
+    }
+  }
+
+  /// Secadoras livres no horário logo após [inicioLavagem].
+  int secadorasLivresApos(DateTime inicioLavagem) {
+    final ini = e.inicioDoSlot(inicioLavagem).add(e.slot);
+    final fim = ini.add(e.slot);
+    if (!ini.isAfter(e.agora) || e.fechamentoNoPeriodo(ini, fim) != null) {
+      return 0;
+    }
+    return d.alternativas(TipoMaquina.secadora, ini).length;
+  }
+
   // -------------------------------------------------------------- Usar agora
 
   Reserva usarAgora({

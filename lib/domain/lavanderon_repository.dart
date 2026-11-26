@@ -66,6 +66,20 @@ abstract class LavanderonRepository {
     OrigemAcao origem = OrigemAcao.app,
   });
 
+  /// RN-24: reserva uma lavadora em [inicioLavagem] e uma secadora no horário
+  /// seguinte, juntas ou nenhuma. Os dois ids nulos escolhem a máquina livre
+  /// menos usada de cada tipo. As duas reservas compartilham o `comboId`.
+  Future<(Reserva lavagem, Reserva secagem)> reservarCombo({
+    required Morador quem,
+    required DateTime inicioLavagem,
+    String? lavadoraId,
+    String? secadoraId,
+    OrigemAcao origem = OrigemAcao.app,
+  });
+
+  /// Quantas secadoras estão livres no horário logo após [inicioLavagem].
+  Future<int> secadorasLivresApos(DateTime inicioLavagem);
+
   /// RN-11: reserva + check-in imediato, já com cronômetro.
   Future<Reserva> usarAgora({
     required Morador quem,

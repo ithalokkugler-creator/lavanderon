@@ -334,6 +334,30 @@ void popularSeedVision(EstadoDemo e) {
     }
   }
 
+  // Um combo de exemplo (RN-24): lavagem às 20h e secagem às 21h do dia +3,
+  // de um apartamento do pool (não mexe em Ap 302).
+  {
+    final apto = pool.first;
+    final lavIni = t(3, 20);
+    final secIni = t(3, 21);
+    final lavId = ['lav1', 'lav2', 'lav3', 'lav4', 'lav6']
+        .firstWhere((m) => livre(m, lavIni), orElse: () => '');
+    final secId = ['sec1', 'sec2', 'sec3', 'sec4', 'sec6']
+        .firstWhere((m) => livre(m, secIni), orElse: () => '');
+    if (lavId.isNotEmpty && secId.isNotEmpty) {
+      final lav = criar(
+          maq: lavId, apto: apto, ini: lavIni, st: StatusReserva.agendada);
+      final sec = criar(
+          maq: secId, apto: apto, ini: secIni, st: StatusReserva.agendada);
+      final linha = e.linha('Combo lavar + secar',
+          lavIni.subtract(const Duration(hours: 20)));
+      e.reservas[lav.id] =
+          lav.copyWith(comboId: 'c-seed', historico: [...lav.historico, linha]);
+      e.reservas[sec.id] =
+          sec.copyWith(comboId: 'c-seed', historico: [...sec.historico, linha]);
+    }
+  }
+
   // Histórico da Maria (302): ~10 entradas nos últimos 30 dias.
   final hist302 = <Reserva>[];
   const offsets = [-29, -26, -23, -20, -17, -14, -11, -8, -5, -2];
